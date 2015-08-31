@@ -18,23 +18,23 @@ local posix = require("posix")
 --
 -- Simple popen3() implementation
 --
-function popen3(path, ...)
+local function popen3(path, ...)
+	local r0, w0 = posix.pipe()
 	local r1, w1 = posix.pipe()
 	local r2, w2 = posix.pipe()
-	local r3, w3 = posix.pipe()
 
-	assert((w1 ~= nil and r2 ~= nil and r3 ~= nil), "pipe() failed")
+	assert((w0 ~= nil and r1 ~= nil and r2 ~= nil), "pipe() failed")
 
 	local pid, err = posix.fork()
 	assert(pid ~= nil, "fork() failed")
 	if pid == 0 then
-		posix.close(w1)
+		posix.close(w0)
+		posix.close(r1)
 		posix.close(r2)
-		posix.close(r3)
 
-		posix.dup2(r1, posix.fileno(io.stdin))
-		posix.dup2(w2, posix.fileno(io.stdout))
-		posix.dup2(w3, posix.fileno(io.stderr))
+		posix.dup2(r0, posix.fileno(io.stdin))
+		posix.dup2(w1, posix.fileno(io.stdout))
+		posix.dup2(w2, posix.fileno(io.stderr))
 
 		local ret, err = posix.execp(path, ...)
 		assert(ret ~= nil, "execp() failed")
@@ -43,11 +43,11 @@ function popen3(path, ...)
 		return
 	end
 
-	posix.close(r1)
+	posix.close(r0)
+	posix.close(w1)
 	posix.close(w2)
-	posix.close(w3)
 
-	return pid, w1, r2, r3
+	return pid, w0, r1, r2
 end
 
 --
@@ -58,7 +58,7 @@ end
 -- Note: This functions expects @input to be an array starting at index
 -- 1 such that #input operator works.
 --
-function pipe_multi(input, max_procs, cmd, ...)
+local function pipe_multi(input, max_procs, cmd, ...)
 
 	local stdout_fd = {}
 	local stderr_fd = {}
@@ -227,7 +227,15 @@ end
 -- Special case of pipe_multi() where we don't use tables for input
 -- or output since we have only one process to run.
 --
-function pipe_single(input, cmd, ...)
+local function pipe_single(input, cmd, ...)
 	local status, stdout, stderr = pipe_multi({input}, 1, cmd, ...)
 	return status[1], stdout[1], stderr[1]
 end
+
+local M = {
+	pipe = pipe_single,
+	pipes = pipe_multi,
+	popen3 = popen3,
+}
+
+return M

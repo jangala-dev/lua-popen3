@@ -1,9 +1,11 @@
 #!/usr/bin/env lua
-require("os")
-require("io")
-require("posix")
-require("pipe")
+local os = require("os")
+local io = require("io")
+local posix = require("posix")
+local pipe = require("pipe")
 
+local popen3 = pipe.popen3
+local pipe_multi = pipe.pipes
 
 --
 -- Feed spam messages to sa-learn to teach the bayesian classifier
@@ -11,18 +13,14 @@ require("pipe")
 -- Note: this won't scale well as all the input emails will be buffered
 -- in memory
 --
-function test_single(cnt, out)
-	t = {}
-	for i = 1,cnt do table.insert(t, 'a') end
-	str = table.concat(t)
+local function test_single(cnt, out)
+	local str = ("a"):rep(cnt)
 
 	local status = pipe_multi({str}, 1, 'tee', out)
 end
 
-function test_popen3(cnt, out)
-	t = {}
-	for i = 1,cnt do table.insert(t, 'a') end
-	str = table.concat(t)
+local function test_popen3(cnt, out)
+	local str = ("a"):rep(cnt)
 
 	local lpid, lstdin_fd, lstdout_fd, lstderr_fd = popen3('tee', out)
 	assert(lpid ~= nil, "filter() unable to popen3()")
